@@ -31,6 +31,7 @@ Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` v�
 
 - `ShouldGrant` và `ShouldConfirm` tóm gọn bảng trên.
 - `IsTester` cho biết purchase có mất tiền thật không (License Tester, TestFlight/Sandbox).
+- `PurchaseKey` là khoá chống cấp trùng: `purchaseToken` với Google (luôn có), `transactionId` với Apple. Đừng dùng `transactionId` cho Google: purchase bằng promo code không có `orderId`.
 - `ToString()` in đủ thông tin để ghi log.
 
 **Không** coi `RetryLater` hay `ClientError` là gian lận: các trường hợp đó server chưa kiểm tra được purchase. Google tự hoàn tiền purchase không được confirm trong 3 ngày, nên đừng giữ pending quá lâu chỉ vì lỗi mạng: store gửi lại purchase ở lần mở app sau, khi đó verify lại.
@@ -58,7 +59,7 @@ public class IapPurchaseFlow : MonoBehaviour
     private IapVerifyClient verifyClient;
 
     // TODO: lưu vào save game. OnPurchasePending có thể tới nhiều lần cho cùng một purchase (app tắt trước khi confirm)
-    private readonly HashSet<string> grantedTransactionIds = new HashSet<string>();
+    private readonly HashSet<string> grantedPurchaseKeys = new HashSet<string>();
 
 
     #region UNITY LIFECYCLE
@@ -97,7 +98,7 @@ public class IapPurchaseFlow : MonoBehaviour
             switch (result.Outcome)
             {
                 case IapVerifyOutcome.Valid:
-                    GrantOnce(result.Response);
+                    GrantOnce(result);
                     store.ConfirmPurchase(order);
 
                     break;
@@ -136,13 +137,16 @@ public class IapPurchaseFlow : MonoBehaviour
         VerifyAndFinish(order, attempt + 1);
     }
 
-    private void GrantOnce(IapVerifyResponse response)
+    private void GrantOnce(IapVerifyResult result)
     {
-        // Cấp theo productId trong response (sản phẩm thật trong receipt), không theo sản phẩm app tưởng là đã mua
-        if (!grantedTransactionIds.Add(response.transactionId))
+        // PurchaseKey: purchaseToken (Google) / transactionId (Apple)
+        if (!grantedPurchaseKeys.Add(result.PurchaseKey))
             return;
 
-        // TODO: cấp vật phẩm của response.productId (x response.quantity); response.isTester nếu cần xử lý riêng tester
+        // Cấp theo productId trong response (sản phẩm thật trong receipt), không theo sản phẩm app tưởng là đã mua
+        var response = result.Response;
+
+        // TODO: cấp vật phẩm của response.productId (x response.quantity); result.IsTester nếu cần xử lý riêng tester
     }
 
     private void OnPurchasePending(PendingOrder order)
@@ -188,7 +192,7 @@ public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
     verifyClient.Verify(product.receipt, product.definition.storeSpecificId, result =>
     {
         if (result.ShouldGrant)
-            GrantOnce(result.Response);
+            GrantOnce(result);
 
         // Invalid cũng confirm để xoá khỏi hàng đợi; PaymentPending / RetryLater / ClientError giữ pending
         if (result.ShouldConfirm)
@@ -208,7 +212,7 @@ public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
 var result = await verifyClient.VerifyAsync(order.Info.Receipt, productId);
 
 if (result.ShouldGrant)
-    GrantOnce(result.Response);
+    GrantOnce(result);
 ```
 
 ## Kiểm thử

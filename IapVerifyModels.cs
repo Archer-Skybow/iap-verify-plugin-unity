@@ -16,6 +16,8 @@ namespace Skybow.IapVerify
         public string state;
         public string productId;
         public string transactionId;
+        // Chỉ Google: định danh duy nhất của purchase, luôn có (orderId có thể vắng với promo code)
+        public string purchaseToken;
         public string originalTransactionId;
         public string purchaseTime;
         public string expiresTime;

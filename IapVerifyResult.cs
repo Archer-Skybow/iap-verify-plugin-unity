@@ -26,6 +26,12 @@
 
         public bool IsTester => Response != null && Response.isTester;
 
+        // Khoá chống cấp trùng một purchase: Google purchaseToken (luôn có), Apple transactionId.
+        // null khi không có Response.
+        public string PurchaseKey => Response == null
+            ? null
+            : string.IsNullOrEmpty(Response.purchaseToken) ? Response.transactionId : Response.purchaseToken;
+
         internal IapVerifyResult(IapVerifyOutcome outcome, long httpCode, IapVerifyResponse response, string errorCode, string message, int retryAfterSeconds)
         {
             Outcome = outcome;
