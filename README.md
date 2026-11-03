@@ -3,7 +3,7 @@
 Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` và biết phải làm gì với purchase. Đặc tả API: [docs/API.md](../../../docs/API.md).
 
 - Không phụ thuộc Unity IAP: chỉ nhận chuỗi receipt, nên dùng được với Unity IAP 4 lẫn 5.
-- Không cần `MonoBehaviour`: callback chạy trên main thread. Có thêm bản `async` (`VerifyAsync`).
+- Gọi thẳng `IapVerifyClient.Verify(...)` (static class), không cần khởi tạo hay `MonoBehaviour`: callback chạy trên main thread. Có thêm bản `async` (`VerifyAsync`).
 - Không cần Newtonsoft: request tự dựng JSON (bỏ trường rỗng, vì server trả 400 với chuỗi rỗng), response đọc bằng `JsonUtility`.
 - Yêu cầu Unity 2020.2 trở lên (`UnityWebRequest.result`).
 
@@ -12,10 +12,15 @@ Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` v�
 1. Copy cả thư mục `IapVerify/` vào `Assets/` của game, ví dụ `Assets/Plugins/IapVerify/`. Thư mục có sẵn `Skybow.IapVerify.asmdef` (namespace `Skybow.IapVerify`).
     - Code game nằm trong `Assembly-CSharp` thì dùng được ngay.
     - Code game nằm trong asmdef riêng thì thêm `Skybow.IapVerify` vào mục References của asmdef đó.
-2. **Create → Skybow → IAP Verify Settings**: tạo asset cấu hình, điền:
+2. **Create → Skybow → IAP Verify Settings**: tạo asset cấu hình **trong một thư mục `Resources`**, giữ đúng tên **`IapVerifySettings`** (ví dụ `Assets/Resources/IapVerifySettings.asset`). Client tự đọc asset này ở lần gọi đầu. Điền:
     - `Base Url`: `https://139-162-45-38.ip.linodeusercontent.com` (đổi khi có domain chính thức);
     - `Api Key`: team backend gửi qua kênh riêng. Key nằm trong bản build nên coi như công khai; **không** commit vào repo công khai;
     - `Timeout Seconds`: mặc định 30.
+3. Tuỳ chọn: gọi `IapVerifyClient.Configure(...)` trước lần verify đầu để ghi đè cấu hình, ví dụ chọn asset dev/production theo build, hoặc truyền thẳng `baseUrl` / `apiKey`:
+    ```csharp
+    IapVerifyClient.Configure(Debug.isDebugBuild ? devSettings : productionSettings);
+    ```
+    Không có asset trong `Resources` mà cũng không gọi `Configure` thì `Verify` trả `ClientError` và log lỗi.
 
 ## Kết quả và việc phải làm
 
@@ -53,10 +58,7 @@ public class IapPurchaseFlow : MonoBehaviour
     // Thử lại trong phiên: chờ 5s, 15s, 60s; sau đó để store gửi lại ở lần mở app sau
     private static readonly int[] RetryDelaySeconds = { 5, 15, 60 };
 
-    [SerializeField] private IapVerifySettingsSO verifySettings;
-
     private StoreController store;
-    private IapVerifyClient verifyClient;
 
     // TODO: lưu vào save game. OnPurchasePending có thể tới nhiều lần cho cùng một purchase (app tắt trước khi confirm)
     private readonly HashSet<string> grantedPurchaseKeys = new HashSet<string>();
@@ -67,8 +69,6 @@ public class IapPurchaseFlow : MonoBehaviour
 
     private async void Awake()
     {
-        verifyClient = new IapVerifyClient(verifySettings);
-
         store = UnityIAPServices.StoreController();
         store.OnPurchasePending += OnPurchasePending;
         store.OnPurchaseConfirmed += OnPurchaseConfirmed;
@@ -93,7 +93,7 @@ public class IapPurchaseFlow : MonoBehaviour
         var productId = product?.definition.storeSpecificId;
         var isSubscription = product != null && product.definition.type == ProductType.Subscription;
 
-        verifyClient.Verify(order.Info.Receipt, productId, result =>
+        IapVerifyClient.Verify(order.Info.Receipt, productId, result =>
         {
             switch (result.Outcome)
             {
@@ -189,7 +189,7 @@ public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
     var product = args.purchasedProduct;
     var isSubscription = product.definition.type == ProductType.Subscription;
 
-    verifyClient.Verify(product.receipt, product.definition.storeSpecificId, result =>
+    IapVerifyClient.Verify(product.receipt, product.definition.storeSpecificId, result =>
     {
         if (result.ShouldGrant)
             GrantOnce(result);
@@ -209,7 +209,7 @@ public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
 ## Dùng với async/await
 
 ```csharp
-var result = await verifyClient.VerifyAsync(order.Info.Receipt, productId);
+var result = await IapVerifyClient.VerifyAsync(order.Info.Receipt, productId);
 
 if (result.ShouldGrant)
     GrantOnce(result);

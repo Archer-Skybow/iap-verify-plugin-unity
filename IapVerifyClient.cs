@@ -10,37 +10,50 @@ namespace Skybow.IapVerify
     // Gọi POST /v1/verify/unity của iap-verify-api (docs/API.md).
     // Không phụ thuộc Unity IAP: chỉ nhận chuỗi receipt, nên dùng được với Unity IAP 4 lẫn 5.
     // Callback chạy trên main thread của Unity, không cần MonoBehaviour.
-    public class IapVerifyClient
+    // Cấu hình tự đọc từ Resources/IapVerifySettings ở lần gọi đầu; gọi Configure để ghi đè (vd đổi môi trường).
+    public static class IapVerifyClient
     {
         private const string VerifyPath = "/v1/verify/unity";
+        private const string SettingsResourcePath = "IapVerifySettings";
+        private const int DefaultTimeoutSeconds = 30;
         private const int DefaultRetryAfterSeconds = 60;
 
-        private readonly string baseUrl;
-        private readonly string apiKey;
-        private readonly int timeoutSeconds;
-
-
-        public IapVerifyClient(string baseUrl, string apiKey, int timeoutSeconds = 30)
-        {
-            this.baseUrl = (baseUrl ?? string.Empty).TrimEnd('/');
-            this.apiKey = apiKey;
-            this.timeoutSeconds = timeoutSeconds;
-        }
-
-        public IapVerifyClient(IapVerifySettingsSO settings)
-            : this(settings.BaseUrl, settings.ApiKey, settings.TimeoutSeconds)
-        {
-        }
+        private static string baseUrl;
+        private static string apiKey;
+        private static int timeoutSeconds = DefaultTimeoutSeconds;
+        private static bool isConfigured;
 
 
         #region PUBLIC API
 
 
+        public static void Configure(IapVerifySettingsSO settings)
+        {
+            if (settings == null)
+                return;
+
+            Configure(settings.BaseUrl, settings.ApiKey, settings.TimeoutSeconds);
+        }
+
+        public static void Configure(string baseUrl, string apiKey, int timeoutSeconds = DefaultTimeoutSeconds)
+        {
+            IapVerifyClient.baseUrl = (baseUrl ?? string.Empty).TrimEnd('/');
+            IapVerifyClient.apiKey = apiKey;
+            IapVerifyClient.timeoutSeconds = timeoutSeconds;
+            isConfigured = true;
+        }
+
         // receipt: nguyên chuỗi receipt của Unity IAP (v4: product.receipt, v5: order.Info.Receipt), không sửa.
         // productId: product.definition.storeSpecificId. Khác sản phẩm thật trong receipt thì nhận Invalid.
         // isSubscription: gói subscription của Google phải bật cờ này.
-        public void Verify(string receipt, string productId, Action<IapVerifyResult> onDone, bool isSubscription = false)
+        public static void Verify(string receipt, string productId, Action<IapVerifyResult> onDone, bool isSubscription = false)
         {
+            if (!EnsureConfigured())
+            {
+                onDone?.Invoke(new IapVerifyResult(IapVerifyOutcome.ClientError, 0, null, null, $"Chưa cấu hình: tạo asset {SettingsResourcePath} trong thư mục Resources, hoặc gọi IapVerifyClient.Configure", 0));
+                return;
+            }
+
             if (string.IsNullOrEmpty(receipt))
             {
                 onDone?.Invoke(new IapVerifyResult(IapVerifyOutcome.ClientError, 0, null, null, "receipt rỗng", 0));
@@ -69,7 +82,7 @@ namespace Skybow.IapVerify
             };
         }
 
-        public Task<IapVerifyResult> VerifyAsync(string receipt, string productId, bool isSubscription = false)
+        public static Task<IapVerifyResult> VerifyAsync(string receipt, string productId, bool isSubscription = false)
         {
             var completion = new TaskCompletionSource<IapVerifyResult>();
             Verify(receipt, productId, completion.SetResult, isSubscription);
@@ -82,6 +95,33 @@ namespace Skybow.IapVerify
 
         #region PRIVATE METHODS
 
+
+        // Editor tắt Domain Reload (Enter Play Mode Options) thì biến static còn giữ từ lần Play trước: xoá khi bắt đầu Play.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            baseUrl = null;
+            apiKey = null;
+            timeoutSeconds = DefaultTimeoutSeconds;
+            isConfigured = false;
+        }
+
+        private static bool EnsureConfigured()
+        {
+            if (isConfigured)
+                return true;
+
+            var settings = Resources.Load<IapVerifySettingsSO>(SettingsResourcePath);
+
+            if (settings == null)
+            {
+                Debug.LogError($"[IapVerify] Không tìm thấy Resources/{SettingsResourcePath}: tạo asset bằng Create → Skybow → IAP Verify Settings, đặt trong thư mục Resources");
+                return false;
+            }
+
+            Configure(settings);
+            return true;
+        }
 
         // Tự dựng JSON thay vì JsonUtility.ToJson: JsonUtility ghi chuỗi null thành "" mà server trả 400 với chuỗi rỗng.
         // Trường không dùng phải vắng mặt hẳn khỏi body.
