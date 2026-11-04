@@ -95,6 +95,8 @@ public class IapPurchaseFlow : MonoBehaviour
 
         IapVerifyClient.Verify(order.Info.Receipt, productId, result =>
         {
+            TrackVerifiedPurchase(result);
+
             switch (result.Outcome)
             {
                 case IapVerifyOutcome.Valid:
@@ -128,6 +130,29 @@ public class IapPurchaseFlow : MonoBehaviour
                     break;
             }
         }, isSubscription);
+    }
+
+    private static void TrackVerifiedPurchase(IapVerifyResult result)
+    {
+        // Response chỉ có khi HTTP 200 - ClientError trả Response = null
+        if (result.Outcome != IapVerifyOutcome.Valid || result.IsTester)
+        {
+            Debug.Log("Purchase ignored");
+            return;
+        }
+
+        var adjustEvent = new AdjustEvent("example_aj_iap_event");
+        // adjustEvent.SetRevenue(price, currency);
+        // adjustEvent.ProductId = productId;
+
+#if UNITY_IOS
+        adjustEvent.TransactionId = result.Response.transactionId;
+#else
+        adjustEvent.PurchaseToken = result.Response.purchaseToken;
+#endif
+
+        Adjust.TrackEvent(adjustEvent);
+        Debug.Log("Purchase tracked");
     }
 
     private IEnumerator RetryVerify(PendingOrder order, int attempt, int retryAfterSeconds)
