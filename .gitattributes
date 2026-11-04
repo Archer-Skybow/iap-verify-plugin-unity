@@ -1,0 +1,2 @@
+# File C# giữ CRLF (convention Unity/Visual Studio)
+*.cs text eol=crlf
