@@ -12,7 +12,7 @@ namespace Skybow.IapVerify
         public string ApiKey => apiKey;
         public int TimeoutSeconds => timeoutSeconds;
 
-        [SerializeField] private string baseUrl = "https://139-162-45-38.ip.linodeusercontent.com";
+        [SerializeField] private string baseUrl = "https://iap.archergame.mobi";
         [SerializeField] private string apiKey;
         [SerializeField] private int timeoutSeconds = 30;
     }

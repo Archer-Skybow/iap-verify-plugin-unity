@@ -13,7 +13,7 @@ Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` v�
     - Code game nằm trong `Assembly-CSharp` thì dùng được ngay.
     - Code game nằm trong asmdef riêng thì thêm `Skybow.IapVerify` vào mục References của asmdef đó.
 2. **Create → Skybow → IAP Verify Settings**: tạo asset cấu hình **trong một thư mục `Resources`**, giữ đúng tên **`IapVerifySettings`** (ví dụ `Assets/Resources/IapVerifySettings.asset`). Client tự đọc asset này ở lần gọi đầu. Điền:
-    - `Base Url`: `https://139-162-45-38.ip.linodeusercontent.com` (đổi khi có domain chính thức);
+    - `Base Url`: `https://iap.archergame.mobi` (mặc định của asset);
     - `Api Key`: team backend gửi qua kênh riêng. Key nằm trong bản build nên coi như công khai; **không** commit vào repo công khai;
     - `Timeout Seconds`: mặc định 30.
 3. Tuỳ chọn: gọi `IapVerifyClient.Configure(...)` trước lần verify đầu để ghi đè cấu hình, ví dụ chọn asset dev/production theo build, hoặc truyền thẳng `baseUrl` / `apiKey`:
