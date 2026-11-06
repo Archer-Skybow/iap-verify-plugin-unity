@@ -218,7 +218,7 @@ namespace Skybow.IapVerify
             if (code >= 500)
                 return new IapVerifyResult(IapVerifyOutcome.RetryLater, code, null, errorCode, message, 0);
 
-            // 400, 401...: request sai, thử lại vẫn nhận cùng lỗi
+            // 400, 401, 403...: request sai, sai key, hoặc key chưa gắn với app này (APP_NOT_ALLOWED); thử lại vẫn nhận cùng lỗi
             return new IapVerifyResult(IapVerifyOutcome.ClientError, code, null, errorCode, message, 0);
         }
 

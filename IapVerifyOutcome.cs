@@ -15,7 +15,7 @@
         // Chưa kiểm tra được (mất mạng, 429, 5xx): không cấp, không confirm, thử lại sau
         RetryLater,
 
-        // Request sai (400, 401): lỗi tích hợp, thử lại vẫn lỗi. Không cấp, không confirm, ghi log để sửa client
+        // Request sai (400, 401, 403): lỗi tích hợp hoặc cấu hình, thử lại vẫn lỗi. Không cấp, không confirm, ghi log để sửa client
         ClientError,
     }
 }
