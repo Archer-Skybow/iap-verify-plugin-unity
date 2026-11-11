@@ -2,7 +2,7 @@
 
 Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` và biết phải làm gì với purchase. Đặc tả API: [docs/API.md](../../../docs/API.md).
 
-> **Lưu ý:** `Api Key` trong `Resources/IapVerifySettings.asset` đi kèm thư viện chỉ là **key ví dụ**, không dùng cho game thật. Liên hệ team backend để lấy API key của game rồi điền vào asset cấu hình của game (xem mục [Cài đặt](#cài-đặt)). Mỗi game có key riêng, dùng chung cho bản Android và iOS, và key chỉ verify được app của game đó: dùng key của game khác, hoặc backend chưa gắn key vào app (ví dụ mới gắn cho Android, quên iOS), thì nhận `ClientError` (HTTP 403).
+> **Lưu ý:** `Android Api Key` / `Ios Api Key` trong `Resources/IapVerifySettings.asset` đi kèm thư viện chỉ là **key ví dụ**, không dùng cho game thật. Liên hệ team backend để lấy API key của game rồi điền vào asset cấu hình của game (xem mục [Cài đặt](#cài-đặt)). Mỗi game có key riêng, thường dùng chung cho bản Android và iOS (khi đó điền cùng một key vào cả hai ô), và key chỉ verify được app của game đó: dùng key của game khác, hoặc backend chưa gắn key vào app (ví dụ mới gắn cho Android, quên iOS), thì nhận `ClientError` (HTTP 403). Để trống key của nền tảng đang build thì nhận `ClientError` (HTTP 401) và Console có log lỗi `[IapVerify] ... chưa điền ...`.
 
 - Không phụ thuộc Unity IAP: chỉ nhận chuỗi receipt, nên dùng được với Unity IAP 4 lẫn 5.
 - Gọi thẳng `IapVerifyClient.Verify(...)` (static class), không cần khởi tạo hay `MonoBehaviour`: callback chạy trên main thread. Có thêm bản `async` (`VerifyAsync`).
@@ -16,7 +16,7 @@ Thư viện nhỏ để game Unity gửi receipt lên `POST /v1/verify/unity` v�
     - Code game nằm trong asmdef riêng thì thêm `Skybow.IapVerify` vào mục References của asmdef đó.
 2. **Create → Skybow → IAP Verify Settings**: tạo asset cấu hình **trong một thư mục `Resources`**, giữ đúng tên **`IapVerifySettings`** (ví dụ `Assets/Resources/IapVerifySettings.asset`). Client tự đọc asset này ở lần gọi đầu. Điền:
     - `Base Url`: `https://iap.archergame.mobi` (mặc định của asset);
-    - `Api Key`: key riêng của game (một key cho cả Android và iOS), team backend gửi qua kênh riêng. Key nằm trong bản build nên coi như công khai; **không** commit vào repo công khai;
+    - `Android Api Key`, `Ios Api Key`: key của game cho từng nền tảng, team backend gửi qua kênh riêng. Thường hai ô cùng một key; backend gắn key nào cho app nào thì điền đúng key đó. Client chọn key lúc build theo nền tảng (`UNITY_IOS` → `Ios Api Key`, còn lại → `Android Api Key`; trong Editor theo Build Target đang chọn). Asset tạo từ bản cũ chỉ có `Api Key`: giá trị đó tự chuyển sang `Android Api Key`, cần điền thêm `Ios Api Key`. Key nằm trong bản build nên coi như công khai; **không** commit vào repo công khai;
     - `Timeout Seconds`: mặc định 30.
 3. Tuỳ chọn: gọi `IapVerifyClient.Configure(...)` trước lần verify đầu để ghi đè cấu hình, ví dụ chọn asset dev/production theo build, hoặc truyền thẳng `baseUrl` / `apiKey`:
     ```csharp

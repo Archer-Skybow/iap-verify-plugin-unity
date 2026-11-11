@@ -18,6 +18,12 @@ namespace Skybow.IapVerify
         private const int DefaultTimeoutSeconds = 30;
         private const int DefaultRetryAfterSeconds = 60;
 
+#if UNITY_IOS
+        private const string ApiKeyFieldLabel = "Ios Api Key";
+#else
+        private const string ApiKeyFieldLabel = "Android Api Key";
+#endif
+
         private static string baseUrl;
         private static string apiKey;
         private static int timeoutSeconds = DefaultTimeoutSeconds;
@@ -31,6 +37,10 @@ namespace Skybow.IapVerify
         {
             if (settings == null)
                 return;
+
+            // Không chặn ở đây: request vẫn gửi đi và nhận ClientError (401), nhưng log nói rõ thiếu key của nền tảng nào.
+            if (string.IsNullOrEmpty(settings.ApiKey))
+                Debug.LogError($"[IapVerify] {settings.name}: chưa điền {ApiKeyFieldLabel}");
 
             Configure(settings.BaseUrl, settings.ApiKey, settings.TimeoutSeconds);
         }

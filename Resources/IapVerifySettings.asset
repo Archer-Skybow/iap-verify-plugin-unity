@@ -13,5 +13,6 @@ MonoBehaviour:
   m_Name: IapVerifySettings
   m_EditorClassIdentifier: Skybow.IapVerify::Skybow.IapVerify.IapVerifySettingsSO
   baseUrl: https://iap.archergame.mobi
-  apiKey: 110f459d193b734a9e526709b70aaddc8c26853091dcef83
+  androidApiKey: 110f459d193b734a9e526709b70aaddc8c26853091dcef83
+  iosApiKey: 110f459d193b734a9e526709b70aaddc8c26853091dcef83
   timeoutSeconds: 30
